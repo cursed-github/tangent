@@ -51,7 +51,7 @@
 /* ============================================
    FLOATING PANEL
    ============================================ */
-#claude-thread-panel {
+.claude-thread-panel {
   position: fixed;
   z-index: 2147483646;
   display: flex;
@@ -66,19 +66,19 @@
   overflow: hidden;
 }
 
-#claude-thread-panel.visible {
+.claude-thread-panel.visible {
   opacity: 1;
   visibility: visible;
   transform: translateX(0);
 }
 
-#claude-thread-panel.dragging,
-#claude-thread-panel.resizing {
+.claude-thread-panel.dragging,
+.claude-thread-panel.resizing {
   transition: none;
   user-select: none;
 }
 
-#claude-thread-panel.dragging iframe {
+.claude-thread-panel.dragging iframe {
   pointer-events: none;
 }
 
@@ -156,7 +156,7 @@
   background: #0a0a0a;
 }
 
-#thread-iframe {
+.thread-iframe {
   width: 100%;
   height: 100%;
   border: none;
@@ -244,6 +244,97 @@
 
 .thread-panel-resize-handle:hover {
   background: linear-gradient(135deg, transparent 50%, rgba(217, 119, 6, 0.3) 50%);
+}
+
+/* ============================================
+   MINIMIZE BUTTON
+   ============================================ */
+.thread-panel-btn.thread-panel-minimize:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+/* ============================================
+   MINIMIZED TAB BAR
+   ============================================ */
+.thread-tabbar {
+  position: fixed;
+  right: 12px;
+  top: 80px;
+  z-index: 2147483645;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.thread-tabbar.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.thread-tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #262626;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 200px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.thread-tab:hover {
+  background: #333333;
+  transform: translateX(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.thread-tab-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.thread-tab-content svg {
+  flex-shrink: 0;
+  color: #d97706;
+}
+
+.thread-tab-text {
+  font-size: 12px;
+  color: #e5e5e5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.thread-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #737373;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.thread-tab-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
 
 /* ============================================
