@@ -10,9 +10,72 @@ This file tracks decisions, discussions, and context for future sessions.
 Chrome extension that lets users select text in Claude.ai conversations and open a floating side panel with a fresh Claude chat, preserving the main thread while exploring tangents.
 
 ### Current State
-- Version: `2026-02-05.1`
-- Git repo initialized with initial commit
-- Core files: `manifest.json`, `content.js`, `styles.css`, icons, README, LICENSE
+- Version: `2026-02-05.2` (commit `b3729ff`)
+- Git repo with 2 commits, 2 tags
+- Core files: `manifest.json`, `content.js`, `styles.css`, `model-summary.md`, icons, README, LICENSE
+
+### Version History
+| Tag | Description |
+|-----|-------------|
+| `2026-02-05.1` | Initial release - basic thread opener |
+| `2026-02-05.2` | Multi-panel, minimize/expand, auto-paste context |
+
+### Known Issues (Current)
+1. **Incognito toggle fails ~10%** on later threads - localStorage race condition with Claude's React state
+2. **Old draft text appears** in new threads - Claude's shared localStorage draft persistence
+3. **Auto-paste may not work reliably** - works on 2nd/3rd try, needs retry logic
+
+### Root Cause (Both Issues)
+All iframes share same-origin localStorage. Claude stores drafts and preferences there. When we close a thread, localStorage persists. New threads read stale state.
+
+### Attempted Solutions (Session 1)
+
+#### URL Param `?incognito=true`
+- **Result**: Does NOT work in iframe context
+- Works fine in regular Chrome tab, but iframe ignores it
+- Claude probably only reads this param on initial page load, not embedded iframes
+
+#### Hybrid Verify+Retry for Incognito
+- **Result**: Made things WORSE - caused page refresh and flicker wars
+- Reverted to simple click-once approach
+
+### What Works (Current Stable)
+- Multi-panel: YES
+- Minimize/expand: YES
+- Incognito button click: ~90%
+- Auto-paste: Partial (may need 2-3 tries)
+
+### Session 2 Notes (2026-02-06)
+
+**Attempted fix: Smart wait-then-paste**
+- Idea: Check if input is empty (fast path) vs has old draft (slow path with delay)
+- Result: Did NOT work
+- The approach of detecting empty vs non-empty and delaying didn't help
+
+**Key learnings:**
+- `?incognito=true` URL param works in regular tabs but NOT in iframes
+- Auto-paste code runs but doesn't reliably insert text
+- The issue may be deeper - Claude's TipTap editor state management
+- Current auto-paste: finds element, clears it, inserts text, dispatches events - but something's not sticking
+
+**What IS working (stable in 2026-02-05.2):**
+- Multi-panel: YES
+- Minimize/expand tabs: YES
+- Incognito button click: ~90%
+- Clipboard copy: YES (manual paste works)
+- Auto-paste: WORKS on fresh threads, BREAKS only when previous thread was left unused (Claude's localStorage draft interferes)
+
+**Root cause (confirmed):**
+- When user doesn't engage with a thread (no chat), Claude saves draft to localStorage
+- Next thread loads → Claude reads old draft from localStorage → overwrites our auto-paste
+- Normal flow (user chats in each thread) = no issue, auto-paste works fine
+
+### Next Session TODO
+1. Try different approach: Use clipboard API + simulate Cmd+V keypress
+2. Or: Use execCommand('insertText') instead of DOM manipulation
+3. Investigate what events TipTap actually needs
+4. Consider giving up on auto-paste, keep manual clipboard as fallback
+5. Add configurable max threads limit
 
 ### Implemented This Session
 
