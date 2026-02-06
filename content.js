@@ -26,6 +26,10 @@
   let selectedText = '';
   let debounceTimer = null;
 
+  // Scroll origin state (captured at selection time)
+  let selectionScrollTop = 0;
+  let selectionRangeRect = null;
+
   // Multi-panel state
   let panelCounter = 0;
   const panels = new Map(); // panelId -> { element, minimized, contextSnippet }
@@ -247,12 +251,14 @@
 
     const panel = createFloatingPanel(panelId, contextSnippet, contextText);
 
-    // Store panel data
+    // Store panel data (including scroll origin for sticky threads)
     panels.set(panelId, {
       element: panel,
       minimized: false,
       contextSnippet: contextSnippet,
-      fullContext: contextText
+      fullContext: contextText,
+      originScrollTop: selectionScrollTop,
+      originSelectedText: contextText
     });
 
     const iframe = panel.querySelector('.thread-iframe');
@@ -338,6 +344,82 @@
     hideFloatingButton();
 
     updateTabBar();
+
+    // Scroll to origin and highlight the selected text
+    scrollToOriginAndHighlight(panelData);
+  }
+
+  function scrollToOriginAndHighlight(panelData) {
+    const scrollContainer = getScrollContainer();
+    if (!scrollContainer) return;
+
+    // Smooth-scroll to the saved origin scroll position (offset a bit to center)
+    const offset = scrollContainer.clientHeight / 3;
+    const targetScroll = Math.max(0, panelData.originScrollTop - offset);
+    scrollContainer.scrollTo({ top: targetScroll, behavior: 'smooth' });
+
+    // After scroll settles, find and highlight the text
+    setTimeout(() => {
+      highlightTextInDOM(panelData.originSelectedText);
+    }, 350);
+  }
+
+  function highlightTextInDOM(text) {
+    if (!text) return;
+
+    const highlights = [];
+    const blockSelectors = 'p, li, pre, blockquote, h1, h2, h3, h4, h5, h6, div';
+
+    // Split into paragraphs/lines, filter out short fragments (citation labels etc.)
+    const lines = text.split(/\n+/).filter(line => line.trim().length > 30);
+
+    // Single forward-moving walker prevents matching earlier paragraphs
+    // that happen to share text (e.g. duplicate citation labels)
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    for (const line of lines) {
+      const searchStr = line.trim().substring(0, 50);
+
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        // Skip nodes inside our extension's UI
+        if (node.parentElement && node.parentElement.closest &&
+            (node.parentElement.closest('.claude-thread-panel') ||
+             node.parentElement.closest('#claude-thread-button') ||
+             node.parentElement.closest('.thread-tabbar'))) {
+          continue;
+        }
+        if (node.textContent.indexOf(searchStr) !== -1) {
+          // Walk up to the nearest block-level parent
+          const block = node.parentElement.closest(blockSelectors);
+          if (block && !block.classList.contains('thread-highlight-flash')) {
+            block.classList.add('thread-highlight-flash');
+            highlights.push(block);
+          }
+          break;
+        }
+      }
+    }
+
+    if (highlights.length === 0) return;
+
+    // Scroll the first highlighted block into view
+    highlights[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Fade out and clean up
+    setTimeout(() => {
+      highlights.forEach(el => el.classList.add('fade-out'));
+    }, 800);
+
+    setTimeout(() => {
+      highlights.forEach(el => {
+        el.classList.remove('thread-highlight-flash', 'fade-out');
+      });
+    }, 2000);
   }
 
   function closePanel(panelId) {
@@ -465,6 +547,33 @@ Context from my main thread:
   }
 
   // ============================================
+  // SCROLL CONTAINER
+  // ============================================
+  function getScrollContainer() {
+    // Try Claude's main scrollable element
+    const scrollEl = document.querySelector('[class*="scroll"]');
+    if (scrollEl && scrollEl.scrollHeight > scrollEl.clientHeight) {
+      return scrollEl;
+    }
+    // Walk up from the current selection to find nearest scrollable ancestor
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      let node = selection.getRangeAt(0).commonAncestorContainer;
+      while (node && node !== document.body) {
+        if (node.nodeType === 1) {
+          const style = window.getComputedStyle(node);
+          const overflowY = style.overflowY;
+          if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) {
+            return node;
+          }
+        }
+        node = node.parentNode;
+      }
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+
+  // ============================================
   // SELECTION HANDLING
   // ============================================
   function handleSelection(e) {
@@ -476,19 +585,24 @@ Context from my main thread:
       
       if (text.length >= CONFIG.minSelectionLength) {
         selectedText = text;
-        
+
         // Get position from mouse event or selection range
         let x = e.clientX;
         let y = e.clientY;
-        
+
         // If we have a range, use its end position for better placement
         if (selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
           const rect = range.getBoundingClientRect();
           x = rect.right;
           y = rect.top;
+
+          // Capture scroll origin for sticky threads
+          const scrollContainer = getScrollContainer();
+          selectionScrollTop = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
+          selectionRangeRect = rect;
         }
-        
+
         showFloatingButton(x, y);
       } else {
         hideFloatingButton();

@@ -338,6 +338,19 @@
 }
 
 /* ============================================
+   THREAD HIGHLIGHT FLASH
+   ============================================ */
+.thread-highlight-flash {
+  background: rgba(250, 204, 21, 0.4) !important;
+  border-radius: 4px;
+  transition: background 1s ease-out;
+}
+
+.thread-highlight-flash.fade-out {
+  background: transparent;
+}
+
+/* ============================================
    ANIMATIONS
    ============================================ */
 @keyframes fadeIn {

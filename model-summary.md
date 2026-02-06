@@ -10,8 +10,8 @@ This file tracks decisions, discussions, and context for future sessions.
 Chrome extension that lets users select text in Claude.ai conversations and open a floating side panel with a fresh Claude chat, preserving the main thread while exploring tangents.
 
 ### Current State
-- Version: `2026-02-05.2` (commit `b3729ff`)
-- Git repo with 2 commits, 2 tags
+- Version: `2026-02-06.v3` (latest)
+- Git repo with 3 commits, 3 tags
 - Core files: `manifest.json`, `content.js`, `styles.css`, `model-summary.md`, icons, README, LICENSE
 
 ### Version History
@@ -19,14 +19,20 @@ Chrome extension that lets users select text in Claude.ai conversations and open
 |-----|-------------|
 | `2026-02-05.1` | Initial release - basic thread opener |
 | `2026-02-05.2` | Multi-panel, minimize/expand, auto-paste context |
+| `2026-02-06.v3` | Sticky threads: auto-scroll + yellow highlight on expand |
 
 ### Known Issues (Current)
-1. **Incognito toggle fails ~10%** on later threads - localStorage race condition with Claude's React state
-2. **Old draft text appears** in new threads - Claude's shared localStorage draft persistence
-3. **Auto-paste may not work reliably** - works on 2nd/3rd try, needs retry logic
+1. **Incognito toggle fails** on later threads — only when previous thread was left unused (no chat sent)
+2. **Auto-paste fails** on later threads — same trigger: previous thread left unused
+
+Both issues work fine when every thread is actually chatted in.
 
 ### Root Cause (Both Issues)
-All iframes share same-origin localStorage. Claude stores drafts and preferences there. When we close a thread, localStorage persists. New threads read stale state.
+All iframes share same-origin localStorage. When a thread goes unused, Claude saves draft/state to localStorage. The next thread loads, reads that stale state, and it interferes with both:
+- **Auto-paste**: Claude's draft restoration overwrites the injected text
+- **Incognito toggle**: Claude's persisted preference/state fights the programmatic click
+
+When each thread is used (chatted in), Claude clears/updates localStorage normally, so subsequent threads work fine.
 
 ### Attempted Solutions (Session 1)
 
@@ -42,8 +48,9 @@ All iframes share same-origin localStorage. Claude stores drafts and preferences
 ### What Works (Current Stable)
 - Multi-panel: YES
 - Minimize/expand: YES
-- Incognito button click: ~90%
-- Auto-paste: Partial (may need 2-3 tries)
+- Incognito toggle: YES (breaks only when previous thread left unused)
+- Auto-paste: YES (breaks only when previous thread left unused)
+- Clipboard copy: YES (manual paste always works as fallback)
 
 ### Session 2 Notes (2026-02-06)
 
@@ -61,14 +68,52 @@ All iframes share same-origin localStorage. Claude stores drafts and preferences
 **What IS working (stable in 2026-02-05.2):**
 - Multi-panel: YES
 - Minimize/expand tabs: YES
-- Incognito button click: ~90%
-- Clipboard copy: YES (manual paste works)
-- Auto-paste: WORKS on fresh threads, BREAKS only when previous thread was left unused (Claude's localStorage draft interferes)
+- Incognito toggle: YES (breaks only when previous thread left unused)
+- Clipboard copy: YES (manual paste always works)
+- Auto-paste: YES (breaks only when previous thread left unused)
 
-**Root cause (confirmed):**
-- When user doesn't engage with a thread (no chat), Claude saves draft to localStorage
-- Next thread loads → Claude reads old draft from localStorage → overwrites our auto-paste
-- Normal flow (user chats in each thread) = no issue, auto-paste works fine
+**Root cause (confirmed — applies to BOTH incognito toggle and auto-paste):**
+- When user doesn't engage with a thread (no chat), Claude saves draft/state to localStorage
+- Next thread loads → Claude reads stale localStorage → overwrites auto-paste AND fights incognito toggle
+- Normal flow (user chats in each thread) = no issue, both features work fine
+
+### Session 3 Notes (2026-02-06)
+
+#### Sticky Threads: Auto-scroll + Yellow Highlight on Expand
+
+**Request**: When a user minimizes a thread and later clicks the tab to re-expand it, scroll back to the original selection and flash-highlight it yellow so the user reconnects with the context.
+
+**Implementation** (in `content.js` and `styles.css`):
+
+New state variables:
+- `selectionScrollTop` — scroll container's scrollTop at selection time
+- `selectionRangeRect` — bounding rect of the selection range
+
+New functions:
+- `getScrollContainer()` — finds Claude's main scrollable element by checking `[class*="scroll"]`, walking up from selection for scrollable ancestors, falling back to `document.scrollingElement`
+- `scrollToOriginAndHighlight(panelData)` — smooth-scrolls to saved origin, then calls highlight after 350ms
+- `highlightTextInDOM(text)` — splits text into lines, uses a forward-moving TreeWalker to find matching text nodes, applies highlight class to containing block elements (`<p>`, `<li>`, etc.)
+
+Panel data changes:
+- `originScrollTop` and `originSelectedText` stored per panel in `showFloatingPanel()`
+
+`expandPanel()` updated to call `scrollToOriginAndHighlight()`.
+
+CSS:
+- `.thread-highlight-flash` — yellow background (`rgba(250, 204, 21, 0.4)`) with 1s ease-out transition
+- `.thread-highlight-flash.fade-out` — transitions to transparent
+
+**Iterations & bugs fixed:**
+1. **Initial version**: Wrapped text nodes in `<span>` — only highlighted first 60 chars, broke on multi-paragraph selections
+2. **Multi-paragraph fix**: Split text by newlines, highlighted each line separately — worked for plain text but failed on paragraphs with inline citation elements (`<a>`, `<span>`) that split text nodes
+3. **Block-level highlighting**: Changed to apply class directly to parent `<p>` element instead of wrapping text nodes — handles inline elements naturally, consistent behavior for full/partial selections
+4. **Duplicate citation bug**: Each line created a new TreeWalker from `document.body`, so citation labels ("National Weather Service") appearing in multiple paragraphs would match the wrong paragraph first. Fixed by using a single forward-moving TreeWalker + filtering out short lines (< 30 chars) that are likely citation labels
+
+**Status**: Implemented and working.
+
+**Design decision**: Highlighting the full parent `<p>` even for partial selections. Trade-off is slight over-highlighting, but it's consistent, robust against inline elements, and cleanup is trivial (classList.remove vs DOM restructuring).
+
+---
 
 ### Next Session TODO
 1. Try different approach: Use clipboard API + simulate Cmd+V keypress
@@ -143,9 +188,9 @@ Keyboard changes:
 2. When found, click once if state is "closed"
 3. 10 second timeout safety
 
-**Known issue**: ~10% of later threads may not enable incognito due to race condition with Claude's React state. Hybrid verify+retry approach was attempted but caused worse issues (page refresh, flicker wars).
+**Known issue**: Incognito toggle fails when the previous thread was left unused (no chat sent). Same localStorage root cause as auto-paste — Claude's persisted state fights the programmatic click. Works reliably when each thread is chatted in.
 
-**Root cause theory**: Claude stores state in localStorage, shared across all iframes. When we click, Claude's state sync fights back. Proper fix would involve clearing/setting localStorage directly.
+**Root cause**: Claude stores state in localStorage, shared across all iframes. When a thread goes unused, stale state persists and interferes with the next thread's toggle.
 
 **Status**: Stable but imperfect. localStorage investigation deferred to future.
 
@@ -357,7 +402,7 @@ Format: `YYYY-MM-DD.X` where X increments for same-day releases.
 - [ ] Temp session storage (sessionStorage)
 
 **Tier 3 - Persistence & Anchoring**
-- [ ] Sticky indicators anchored to original text
+- [x] Scroll-to-origin + highlight on expand (sticky threads)
 - [ ] Persistent storage across sessions (chrome.storage)
 - [ ] Restore threads on page load
 
