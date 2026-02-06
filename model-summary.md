@@ -10,8 +10,8 @@ This file tracks decisions, discussions, and context for future sessions.
 Chrome extension that lets users select text in Claude.ai conversations and open a floating side panel with a fresh Claude chat, preserving the main thread while exploring tangents.
 
 ### Current State
-- Version: `2026-02-06.v3` (latest)
-- Git repo with 3 commits, 3 tags
+- Version: `2026-02-06.v4` (latest)
+- Git repo with 4 commits, 4 tags
 - Core files: `manifest.json`, `content.js`, `styles.css`, `model-summary.md`, icons, README, LICENSE
 
 ### Version History
@@ -20,12 +20,11 @@ Chrome extension that lets users select text in Claude.ai conversations and open
 | `2026-02-05.1` | Initial release - basic thread opener |
 | `2026-02-05.2` | Multi-panel, minimize/expand, auto-paste context |
 | `2026-02-06.v3` | Sticky threads: auto-scroll + yellow highlight on expand |
+| `2026-02-06.v4` | Fix incognito: use URL param, disable conflicting toggle function |
 
 ### Known Issues (Current)
-1. **Incognito toggle fails** on later threads — only when previous thread was left unused (no chat sent)
-2. **Auto-paste fails** on later threads — same trigger: previous thread left unused
-
-Both issues work fine when every thread is actually chatted in.
+1. ~~**Incognito toggle fails** on later threads~~ — **FIXED in v4** (was caused by `enableTemporaryChat()` racing with `?incognito=true` URL param)
+2. **Auto-paste fails** on later threads — only when previous thread was left unused (no chat sent). Works fine when every thread is chatted in.
 
 ### Root Cause (Both Issues)
 All iframes share same-origin localStorage. When a thread goes unused, Claude saves draft/state to localStorage. The next thread loads, reads that stale state, and it interferes with both:
@@ -37,9 +36,9 @@ When each thread is used (chatted in), Claude clears/updates localStorage normal
 ### Attempted Solutions (Session 1)
 
 #### URL Param `?incognito=true`
-- **Result**: Does NOT work in iframe context
-- Works fine in regular Chrome tab, but iframe ignores it
-- Claude probably only reads this param on initial page load, not embedded iframes
+- **Session 1 result**: Appeared to not work in iframe context
+- **Session 3 result**: WORKS — the actual problem was `enableTemporaryChat()` running alongside and toggling it back off. The two approaches were racing each other.
+- **Fix**: Use `?incognito=true` in iframe src, comment out `enableTemporaryChat()`
 
 #### Hybrid Verify+Retry for Incognito
 - **Result**: Made things WORSE - caused page refresh and flicker wars
@@ -48,7 +47,8 @@ When each thread is used (chatted in), Claude clears/updates localStorage normal
 ### What Works (Current Stable)
 - Multi-panel: YES
 - Minimize/expand: YES
-- Incognito toggle: YES (breaks only when previous thread left unused)
+- Incognito toggle: YES (via URL param, works reliably including unchatted threads)
+- Sticky threads (scroll + highlight on expand): YES
 - Auto-paste: YES (breaks only when previous thread left unused)
 - Clipboard copy: YES (manual paste always works as fallback)
 
@@ -112,6 +112,23 @@ CSS:
 **Status**: Implemented and working.
 
 **Design decision**: Highlighting the full parent `<p>` even for partial selections. Trade-off is slight over-highlighting, but it's consistent, robust against inline elements, and cleanup is trivial (classList.remove vs DOM restructuring).
+
+---
+
+#### Fix Incognito Toggle: URL Param Instead of Programmatic Click
+
+**Problem**: Incognito toggle failed on unchatted threads. Session 1 blamed `?incognito=true` not working in iframes, but the real issue was `enableTemporaryChat()` racing against the URL param.
+
+**Root cause**: Both approaches ran simultaneously. The URL param set incognito on, then `enableTemporaryChat()` detected `data-state="closed"` (before UI caught up) and clicked the toggle — turning it back off. The two were fighting each other, causing flicker on unchatted threads.
+
+**Fix**:
+- Changed iframe src from `claude.ai/new#thread-opener-{id}` to `claude.ai/new?incognito=true#thread-opener-{id}`
+- Commented out `enableTemporaryChat()` call in `init()`
+- `enableTemporaryChat()` function left in code but unused (can be removed later)
+
+**Key learning**: The Session 1 conclusion that "URL param doesn't work in iframes" was wrong. It worked all along — the programmatic toggle was undoing it.
+
+**Status**: Fixed and working reliably, including unchatted threads.
 
 ---
 

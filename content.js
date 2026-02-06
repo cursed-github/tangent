@@ -302,8 +302,8 @@
     const contextKey = `claude-thread-opener-context-${panelId}`;
     sessionStorage.setItem(contextKey, contextText);
 
-    // Set iframe src with panel ID in hash so iframe knows which context to load
-    iframe.src = `https://claude.ai/new#thread-opener-${panelId}`;
+    // Set iframe src with incognito param and panel ID in hash
+    iframe.src = `https://claude.ai/new?incognito=true#thread-opener-${panelId}`;
 
     // Fallback: if iframe doesn't load in 5 seconds, show error
     setTimeout(() => {
@@ -920,8 +920,8 @@ Context from my main thread:
     if (window.self !== window.top) {
       console.log('Claude Thread Opener: Running inside iframe');
 
-      // Enable temporary/incognito chat
-      enableTemporaryChat();
+      // Incognito toggle: relying on ?incognito=true URL param instead
+      // enableTemporaryChat();
 
       // Auto-paste the context from the parent page
       autoPasteContext();
