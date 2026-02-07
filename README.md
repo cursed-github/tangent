@@ -1,26 +1,61 @@
-# Claude Thread Opener
+# Tangent – Threaded Chat for Claude
 
-**Open follow-up threads in a floating window without leaving your main Claude conversation.**
+**Branch off into side threads without leaving your main conversation.**
 
-A Chrome extension that solves the "tangent problem" in AI conversations: when you want to explore a follow-up question but don't want to derail your main thread or pollute it with nested explorations.
+![Thread panel open alongside main conversation](images/thread-panel.jpeg)
 
 ## The Problem
 
-When learning or working with Claude, you often encounter moments where:
-- You want to dive deeper into something Claude mentioned
-- You have a tangential question that doesn't belong in the main thread
-- You want to preserve your clean, focused conversation for future reference
+You're deep into a Claude conversation. You've finally found the explanation that clicks — a dense paragraph breaking down exactly how something works. But now you have a follow-up question.
 
-Currently, your options are:
-1. Ask the follow-up in the same thread (pollutes the conversation)
-2. Open a new tab and lose context (friction + disjointed experience)
-3. Just... don't ask (lost learning opportunity)
+So you type it. Claude responds. You scroll back up to re-read that paragraph. Then another question. More scrolling. You're hunting for that one section you were studying, but the conversation keeps growing beneath you. Your flow state is gone. The thing you were trying to understand is now buried under twelve messages of back-and-forth.
+
+**Your options today:**
+1. Ask the follow-up in the same thread → pollutes your clean conversation
+2. Open a new tab → lose context, friction, disjointed experience
+3. Just don't ask → lost learning opportunity
 
 ## The Solution
 
-Select any text in your Claude conversation → Click the floating "Open Thread" button → A panel slides in with a fresh Claude chat, context already copied to your clipboard.
+Tangent fixes this.
 
-Explore the tangent. Close the panel. Your main thread remains pristine.
+Select any text in your Claude conversation and open a threaded side panel — a fresh Claude chat that lives right next to your main conversation. Ask follow-up questions, dig deeper, explore rabbit holes. Your main conversation stays exactly where you left it.
+
+**No scrolling. No context switching. No lost trains of thought.**
+
+![Select text and click Open Thread](images/open-thread-button.jpg)
+
+## How It Works
+
+1. **Select text** in any Claude conversation
+2. **Click "Open Thread"** (or press `Cmd+\` for a blank thread)
+3. **A floating panel opens** with a fresh Claude chat
+4. **Your selected context** is automatically copied for easy reference
+5. **Minimize threads to tabs**, expand them later — you'll be scrolled right back to where you branched off
+
+![Multiple minimized thread tabs](images/minimized-tabs.jpeg)
+
+## Features
+
+### Built for deep learning sessions
+- **Multiple simultaneous threads** — open different threads for different topics
+- **Incognito by default** — each thread runs in temporary mode, no clutter in your sidebar
+- **Minimize & restore** — minimize a thread, keep reading, restore it later with a single click
+- **Visual scroll-back** — when you re-open a minimized thread, the original text highlights in yellow so you instantly reconnect with the context
+
+### Keyboard shortcuts
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+Shift+T` | Open thread from selected text |
+| `Cmd+\` | Open a blank thread |
+| `Escape` | Minimize the current thread |
+
+### Lightweight & private
+- Runs entirely locally in your browser
+- No external network requests (except loading claude.ai in the panel)
+- No data collection, no analytics, no tracking
+- Uses your existing Claude subscription — no API key needed
+- Open source
 
 ## Installation
 
@@ -28,82 +63,39 @@ Explore the tangent. Close the panel. Your main thread remains pristine.
 
 1. Clone or download this repository
 2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode" (toggle in top-right)
-4. Click "Load unpacked"
+3. Enable **Developer mode** (toggle in top-right)
+4. Click **Load unpacked**
 5. Select the `claude-thread-opener` folder
+6. Navigate to [claude.ai](https://claude.ai) and start using Tangent
 
 ### From Chrome Web Store
 
 *(Coming soon)*
 
-## Usage
+## Why Tangent?
 
-1. **Navigate to [claude.ai](https://claude.ai)**
-2. **Select any text** in your conversation (minimum 10 characters)
-3. **Click the floating button** that appears near your selection
-   - Or use keyboard shortcut: `Cmd/Ctrl + Shift + T`
-4. **A panel opens** on the right side with a fresh Claude chat
-5. **Paste** (`Cmd/Ctrl + V`) to include the context, then type your follow-up question
-6. **Close the panel** when done (click X or press `Escape`)
+Claude is incredible for learning complex topics — programming concepts, research papers, technical documentation. But the single-thread chat format forces a painful choice: keep reading or ask a question. Tangent removes that trade-off. Branch off, explore, come back. Your reading flow stays intact.
 
-### Features
-
-- **Floating panel**: Stays in-page, draggable, resizable
-- **Context copying**: Selected text is automatically formatted and copied to clipboard
-- **Keyboard shortcut**: `Cmd/Ctrl + Shift + T` for power users
-- **Clean exit**: `Escape` to close, or click the X button
-- **Your session**: Uses your existing Claude subscription (no API key needed)
-
-## Technical Notes
-
-### How It Works
-
-The extension injects a content script into claude.ai that:
-1. Listens for text selection events
-2. Shows a floating button near the selection
-3. On click, creates a floating panel with an iframe pointing to `claude.ai/new`
-4. Copies formatted context to clipboard
-
-### Limitations
-
-- **Same-origin iframe**: The panel loads Claude in an iframe. If Anthropic changes their security headers (`X-Frame-Options`), this may break. A fallback "open in new tab" option is provided.
-- **Session isolation**: The iframe shares your login session, but conversations in the panel are separate threads.
-- **Clipboard bridge**: We can't programmatically paste into the iframe due to browser security, so users must paste manually.
-
-### Why Not Use the API?
-
-This extension uses your existing Claude subscription rather than the API because:
-1. No additional cost
-2. No API key management
-3. Same experience you're used to
-4. Works for users without API access
+**Stop scrolling. Start branching.**
 
 ## File Structure
 
 ```
 claude-thread-opener/
-├── manifest.json      # Extension configuration
-├── content.js         # Main logic: selection, button, panel
+├── manifest.json      # Extension configuration (Manifest V3)
+├── content.js         # Main logic: selection, button, panel, iframe
 ├── styles.css         # UI styling
 ├── icons/             # Extension icons
 │   ├── icon16.png
 │   ├── icon48.png
 │   └── icon128.png
+├── images/            # Screenshots
 └── README.md
 ```
 
-## Development
+## Configuration
 
-### Making Changes
-
-1. Edit files in the extension directory
-2. Go to `chrome://extensions/`
-3. Click the refresh icon on the extension card
-4. Reload any claude.ai tabs
-
-### Customization
-
-Key configuration is at the top of `content.js`:
+Key settings are at the top of `content.js`:
 
 ```javascript
 const CONFIG = {
@@ -117,28 +109,27 @@ const CONFIG = {
 };
 ```
 
-## Privacy
+## Known Limitations
 
-This extension:
-- ✅ Runs entirely locally in your browser
-- ✅ Makes no external network requests (except loading claude.ai in the iframe)
-- ✅ Stores no data
-- ✅ Has no analytics or tracking
-- ✅ Is open source
+- **Iframe dependency** — The panel loads Claude in an iframe. If Anthropic changes their security headers, this may break (a fallback "open in new tab" option is provided).
+- **Auto-paste** — Works in most cases, but may fail if a previous thread was left unused. Manual paste (`Cmd+V`) always works as a fallback.
+- **Dark mode only** — Currently styled for Claude's dark theme.
+
+## Contributing
+
+Issues and PRs welcome. Potential improvements:
+
+- [ ] Light mode support
+- [ ] Firefox support
+- [ ] Lazy unload minimized iframes (memory optimization)
+- [ ] Thread history / persistence across sessions
+- [ ] ChatGPT and Gemini support
+- [ ] Customizable keyboard shortcuts
 
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
 
-## Contributing
-
-Issues and PRs welcome. This is a proof-of-concept that could be expanded with:
-- [ ] Dedicated "threads" conversation that accumulates all tangent chats
-- [ ] History of opened threads
-- [ ] Firefox support
-- [ ] Customizable keyboard shortcuts
-- [ ] Light mode support
-
 ---
 
-Built as a proof-of-concept for improving AI conversation UX.
+*Built for people who learn by going on tangents.*
