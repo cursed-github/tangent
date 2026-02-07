@@ -1,6 +1,6 @@
 /**
- * Claude Thread Opener
- * Opens follow-up threads in a floating window without leaving your main conversation
+ * Tangent – Threaded Chat for Claude
+ * Branch off into side threads without leaving your main conversation
  */
 
 (function() {
@@ -43,11 +43,11 @@
     button.id = 'claude-thread-button';
     button.innerHTML = `
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="7" cy="4" r="2" fill="currentColor" stroke="none"/>
-        <line x1="7" y1="6" x2="7" y2="18"/>
-        <circle cx="7" cy="20" r="2" fill="currentColor" stroke="none"/>
-        <path d="M7,12 C7,12 7,15 11,15 L17,15 L17,18"/>
-        <circle cx="17" cy="20" r="2" fill="currentColor" stroke="none"/>
+        <circle cx="7" cy="4" r="2.5" fill="currentColor" stroke="none"/>
+        <line x1="7" y1="6.5" x2="7" y2="17.5"/>
+        <circle cx="7" cy="20" r="2.5" fill="currentColor" stroke="none"/>
+        <path d="M7,12 C7,12 7,15 11,15 L17,15 L17,17.5"/>
+        <circle cx="17" cy="20" r="2.5" fill="currentColor" stroke="none"/>
       </svg>
       <span>Open Thread</span>
     `;
@@ -127,12 +127,12 @@
 
     tab.innerHTML = `
       <div class="thread-tab-content">
-        <svg class="thread-branch-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="7" cy="4" r="2" fill="#888" stroke="none"/>
-          <line x1="7" y1="6" x2="7" y2="18"/>
-          <circle cx="7" cy="20" r="2" fill="#888" stroke="none"/>
-          <path d="M7,12 C7,12 7,15 11,15 L17,15 L17,18"/>
-          <circle cx="17" cy="20" r="2" fill="#888" stroke="none"/>
+        <svg class="thread-branch-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="7" cy="4" r="2.5" fill="#d97706" stroke="none"/>
+          <line x1="7" y1="6.5" x2="7" y2="17.5"/>
+          <circle cx="7" cy="20" r="2.5" fill="#d97706" stroke="none"/>
+          <path d="M7,12 C7,12 7,15 11,15 L17,15 L17,17.5"/>
+          <circle cx="17" cy="20" r="2.5" fill="#d97706" stroke="none"/>
         </svg>
         <span class="thread-tab-text" title="${contextSnippet}">${displayText}</span>
       </div>
@@ -254,7 +254,8 @@
     // Create new panel
     panelCounter++;
     const panelId = panelCounter;
-    const contextSnippet = contextText.substring(0, 100);
+    const isBlank = !contextText;
+    const contextSnippet = isBlank ? 'Blank thread' : contextText.substring(0, 100);
 
     const panel = createFloatingPanel(panelId, contextSnippet, contextText);
 
@@ -264,7 +265,7 @@
       minimized: false,
       contextSnippet: contextSnippet,
       fullContext: contextText,
-      originScrollTop: selectionScrollTop,
+      originScrollTop: isBlank ? 0 : selectionScrollTop,
       originSelectedText: contextText
     });
 
@@ -288,11 +289,14 @@
 
     panel.classList.add('visible');
 
-    // Hide the floating button when panel opens
+    // Clear selection and hide the floating button
+    window.getSelection().removeAllRanges();
     hideFloatingButton();
 
-    // Copy context to clipboard
-    copyContextToClipboard(contextText, panel);
+    // Copy context to clipboard (skip for blank threads)
+    if (!isBlank) {
+      copyContextToClipboard(contextText, panel);
+    }
 
     // Load Claude in iframe
     iframe.onload = () => {
@@ -305,9 +309,11 @@
       error.style.display = 'flex';
     };
 
-    // Store context in sessionStorage for the iframe to read
-    const contextKey = `claude-thread-opener-context-${panelId}`;
-    sessionStorage.setItem(contextKey, contextText);
+    // Store context in sessionStorage for the iframe to read (skip for blank threads)
+    if (!isBlank) {
+      const contextKey = `claude-thread-opener-context-${panelId}`;
+      sessionStorage.setItem(contextKey, contextText);
+    }
 
     // Set iframe src with incognito param and panel ID in hash
     iframe.src = `https://claude.ai/new?incognito=true#thread-opener-${panelId}`;
@@ -474,8 +480,8 @@ Context from my main thread:
         hint.classList.add('flash');
         setTimeout(() => hint.classList.remove('flash'), 1500);
       }
-    }).catch(err => {
-      console.error('Failed to copy to clipboard:', err);
+    }).catch(() => {
+      // Silently ignore — clipboard API fails when document lacks focus (e.g. extension reload)
     });
   }
 
@@ -666,6 +672,12 @@ Context from my main thread:
       }
     }
 
+    // Cmd+\ to open a blank thread
+    if (e.key === '\\' && e.metaKey && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      showFloatingPanel('');
+    }
+
     // Escape to minimize the most recently opened visible panel
     if (e.key === 'Escape') {
       // Find visible (non-minimized) panels and minimize the last one
@@ -690,7 +702,7 @@ Context from my main thread:
     const match = hash.match(/^#thread-opener-(\d+)$/);
 
     if (!match) {
-      console.log('Claude Thread Opener: No context hash found, skipping auto-paste');
+      console.log('Tangent: No context hash found, skipping auto-paste');
       return;
     }
 
@@ -699,14 +711,14 @@ Context from my main thread:
     const contextText = sessionStorage.getItem(contextKey);
 
     if (!contextText) {
-      console.log('Claude Thread Opener: No context found in sessionStorage');
+      console.log('Tangent: No context found in sessionStorage');
       return;
     }
 
     // Clear the stored context to prevent reuse
     sessionStorage.removeItem(contextKey);
 
-    console.log('Claude Thread Opener: Found context, will auto-paste');
+    console.log('Tangent: Found context, will auto-paste');
 
     // Format the context
     const formattedContext = `---\nContext from my main thread:\n"${contextText}"\n---\n\n`;
@@ -737,7 +749,7 @@ Context from my main thread:
       }
 
       if (inputElement) {
-        console.log('Claude Thread Opener: Found input element', inputElement.className);
+        console.log('Tangent: Found input element', inputElement.className);
 
         try {
           // Focus the editor first
@@ -786,11 +798,11 @@ Context from my main thread:
             observer = null;
           }
 
-          console.log('Claude Thread Opener: Auto-pasted context successfully');
+          console.log('Tangent: Auto-pasted context successfully');
           return true;
 
         } catch (err) {
-          console.error('Claude Thread Opener: Error inserting text', err);
+          console.error('Tangent: Error inserting text', err);
         }
       }
 
@@ -815,7 +827,7 @@ Context from my main thread:
     // Safety timeout
     setTimeout(() => {
       if (!hasInserted) {
-        console.log('Claude Thread Opener: Timeout waiting for input element');
+        console.log('Tangent: Timeout waiting for input element');
         if (observer) {
           observer.disconnect();
           observer = null;
@@ -823,14 +835,14 @@ Context from my main thread:
       }
     }, timeoutMs);
 
-    console.log('Claude Thread Opener: Watching for input element...');
+    console.log('Tangent: Watching for input element...');
   }
 
   // ============================================
   // TEMPORARY CHAT AUTO-ENABLE (for iframe)
   // ============================================
   function enableTemporaryChat() {
-    console.log('Claude Thread Opener: Setting up temporary chat auto-enable');
+    console.log('Tangent: Setting up temporary chat auto-enable');
 
     let hasEnabled = false;
     let observer = null;
@@ -874,9 +886,9 @@ Context from my main thread:
 
         if (currentState === 'closed') {
           toggleButton.click();
-          console.log('Claude Thread Opener: Enabled temporary chat');
+          console.log('Tangent: Enabled temporary chat');
         } else {
-          console.log('Claude Thread Opener: Temporary chat already enabled (state:', currentState, ')');
+          console.log('Tangent: Temporary chat already enabled (state:', currentState, ')');
         }
 
         hasEnabled = true;
@@ -908,7 +920,7 @@ Context from my main thread:
     // Safety timeout - stop observing after max wait time
     setTimeout(() => {
       if (!hasEnabled) {
-        console.log('Claude Thread Opener: Timeout waiting for incognito button');
+        console.log('Tangent: Timeout waiting for incognito button');
         if (observer) {
           observer.disconnect();
           observer = null;
@@ -916,7 +928,7 @@ Context from my main thread:
       }
     }, timeoutMs);
 
-    console.log('Claude Thread Opener: Watching for incognito button...');
+    console.log('Tangent: Watching for incognito button...');
   }
 
   // ============================================
@@ -944,7 +956,7 @@ Context from my main thread:
       }
     }, { capture: true });
 
-    console.log('Claude Thread Opener: Enter-to-send fix installed');
+    console.log('Tangent: Enter-to-send fix installed');
   }
 
   // ============================================
@@ -953,7 +965,7 @@ Context from my main thread:
   function init() {
     // If we're inside an iframe (the thread panel), handle iframe-specific features
     if (window.self !== window.top) {
-      console.log('Claude Thread Opener: Running inside iframe');
+      console.log('Tangent: Running inside iframe');
 
       // Incognito toggle: relying on ?incognito=true URL param instead
       // enableTemporaryChat();

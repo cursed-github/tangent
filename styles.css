@@ -1,5 +1,5 @@
 /**
- * Claude Thread Opener Styles
+ * Tangent – Threaded Chat for Claude – Styles
  */
 
 /* ============================================
@@ -362,14 +362,14 @@
 
 .orbit-dot {
   position: absolute;
-  width: 5px;
-  height: 5px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #d97706;
-  box-shadow: 0 0 6px 1px rgba(217, 119, 6, 0.5);
+  box-shadow: 0 0 8px 2px rgba(217, 119, 6, 0.5);
   top: 50%;
   left: 50%;
-  margin: -2.5px 0 0 -2.5px;
+  margin: -3.5px 0 0 -3.5px;
 }
 
 .orbit-dot-1 {
@@ -401,7 +401,7 @@
    ============================================ */
 .thread-branch-icon {
   flex-shrink: 0;
-  opacity: 0.7;
+  filter: drop-shadow(0 0 4px rgba(217, 119, 6, 0.6));
 }
 
 /* ============================================

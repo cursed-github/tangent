@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Claude Thread Opener",
+  "name": "Tangent – Threaded Chat for Claude",
   "version": "1.0.0",
-  "description": "Open follow-up threads in a floating window without leaving your main Claude conversation",
+  "description": "Branch off into side threads without leaving your main Claude conversation",
   "permissions": [
     "clipboardWrite",
     "storage"
