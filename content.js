@@ -43,9 +43,11 @@
     button.id = 'claude-thread-button';
     button.innerHTML = `
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        <line x1="12" y1="8" x2="12" y2="14"></line>
-        <line x1="9" y1="11" x2="15" y2="11"></line>
+        <circle cx="7" cy="4" r="2" fill="currentColor" stroke="none"/>
+        <line x1="7" y1="6" x2="7" y2="18"/>
+        <circle cx="7" cy="20" r="2" fill="currentColor" stroke="none"/>
+        <path d="M7,12 C7,12 7,15 11,15 L17,15 L17,18"/>
+        <circle cx="17" cy="20" r="2" fill="currentColor" stroke="none"/>
       </svg>
       <span>Open Thread</span>
     `;
@@ -125,8 +127,12 @@
 
     tab.innerHTML = `
       <div class="thread-tab-content">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        <svg class="thread-branch-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="7" cy="4" r="2" fill="#888" stroke="none"/>
+          <line x1="7" y1="6" x2="7" y2="18"/>
+          <circle cx="7" cy="20" r="2" fill="#888" stroke="none"/>
+          <path d="M7,12 C7,12 7,15 11,15 L17,15 L17,18"/>
+          <circle cx="17" cy="20" r="2" fill="#888" stroke="none"/>
         </svg>
         <span class="thread-tab-text" title="${contextSnippet}">${displayText}</span>
       </div>
@@ -179,9 +185,10 @@
     panel.innerHTML = `
       <div class="thread-panel-header">
         <div class="thread-panel-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-          </svg>
+          <div class="thread-orbit-active">
+            <div class="orbit-dot orbit-dot-1"></div>
+            <div class="orbit-dot orbit-dot-2"></div>
+          </div>
           <span>Thread ${panelId}</span>
         </div>
         <div class="thread-panel-actions">
@@ -913,6 +920,34 @@ Context from my main thread:
   }
 
   // ============================================
+  // ENTER TO SEND FIX (for iframe)
+  // ============================================
+  function fixEnterToSend() {
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // Only act when focus is inside the chat input
+      const active = document.activeElement;
+      if (!active || !active.closest('[contenteditable="true"], textarea')) return;
+
+      // Find the send button
+      const sendBtn =
+        document.querySelector('button[aria-label="Send Message"]') ||
+        document.querySelector('button[aria-label*="Send"]') ||
+        document.querySelector('button[data-testid="send-button"]') ||
+        document.querySelector('fieldset button[type="button"]:last-of-type');
+
+      if (sendBtn && !sendBtn.disabled) {
+        e.preventDefault();
+        e.stopPropagation();
+        sendBtn.click();
+      }
+    }, { capture: true });
+
+    console.log('Claude Thread Opener: Enter-to-send fix installed');
+  }
+
+  // ============================================
   // INITIALIZATION
   // ============================================
   function init() {
@@ -925,6 +960,9 @@ Context from my main thread:
 
       // Auto-paste the context from the parent page
       autoPasteContext();
+
+      // Fix Enter key to send message (iframe may not bind Enter→submit properly)
+      fixEnterToSend();
 
       return;
     }
