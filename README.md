@@ -3,6 +3,8 @@
 **Branch off into side threads without leaving your main conversation.**
 
 ![Thread panel open alongside main conversation](images/thread-panel.jpeg)
+![Select text and click Open Thread](images/open-thread-button.jpg)
+![Multiple minimized thread tabs](images/minimized-tabs.jpeg)
 
 ## The Problem
 
@@ -23,7 +25,7 @@ Select any text in your Claude conversation and open a threaded side panel — a
 
 **No scrolling. No context switching. No lost trains of thought.**
 
-![Select text and click Open Thread](images/open-thread-button.jpg)
+
 
 ## How It Works
 
@@ -33,7 +35,7 @@ Select any text in your Claude conversation and open a threaded side panel — a
 4. **Your selected context** is automatically copied for easy reference
 5. **Minimize threads to tabs**, expand them later — you'll be scrolled right back to where you branched off
 
-![Multiple minimized thread tabs](images/minimized-tabs.jpeg)
+
 
 ## Features
 
@@ -46,9 +48,8 @@ Select any text in your Claude conversation and open a threaded side panel — a
 ### Keyboard shortcuts
 | Shortcut | Action |
 |----------|--------|
-| `Cmd+Shift+T` | Open thread from selected text |
 | `Cmd+\` | Open a blank thread |
-| `Escape` | Minimize the current thread |
+
 
 ### Lightweight & private
 - Runs entirely locally in your browser
@@ -119,8 +120,7 @@ const CONFIG = {
 
 Issues and PRs welcome. Potential improvements:
 
-- [ ] Light mode support
-- [ ] Firefox support
+
 - [ ] Lazy unload minimized iframes (memory optimization)
 - [ ] Thread history / persistence across sessions
 - [ ] ChatGPT and Gemini support
@@ -130,6 +130,4 @@ Issues and PRs welcome. Potential improvements:
 
 MIT License. See [LICENSE](LICENSE) for details.
 
----
 
-*Built for people who learn by going on tangents.*
