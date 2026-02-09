@@ -23,12 +23,73 @@
 
   // Scroll origin state (captured at selection time)
   let selectionScrollTop = 0;
-  let selectionRangeRect = null;
+  let selectionOriginElements = []; // DOM references to block elements in selection
 
   // Multi-panel state
   let panelCounter = 0;
   const panels = new Map(); // panelId -> { element, minimized, contextSnippet }
   let minimizedTabBar = null;
+
+  // ============================================
+  // SELECTION ORIGIN CAPTURE
+  // ============================================
+  const BLOCK_SELECTORS = 'p, li, pre, blockquote, h1, h2, h3, h4, h5, h6';
+
+  function findNearestBlock(el) {
+    if (!el) return null;
+    // Try standard block selectors first
+    const block = el.closest(BLOCK_SELECTORS);
+    if (block) return block;
+    // Fallback: walk up and find first element with block-level display
+    // (catches KaTeX formulas, code blocks, and other non-standard containers)
+    let node = el;
+    while (node && node !== document.body) {
+      if (node.nodeType === 1) {
+        const display = window.getComputedStyle(node).display;
+        if (display === 'block' || display === 'flex') {
+          return node;
+        }
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function getBlockElementsFromSelection(selection) {
+    if (!selection.rangeCount) return [];
+
+    const range = selection.getRangeAt(0);
+    const startNode = range.startContainer;
+    const endNode = range.endContainer;
+
+    const startEl = startNode.nodeType === 1 ? startNode : startNode.parentElement;
+    const endEl = endNode.nodeType === 1 ? endNode : endNode.parentElement;
+
+    const startBlock = findNearestBlock(startEl);
+    if (!startBlock) return [];
+
+    const endBlock = findNearestBlock(endEl);
+
+    // Single block selection
+    if (!endBlock || startBlock === endBlock) {
+      return [startBlock];
+    }
+
+    // Multi-block: collect all blocks between start and end
+    const ancestor = range.commonAncestorContainer;
+    const ancestorEl = ancestor.nodeType === 1 ? ancestor : ancestor.parentElement;
+    const allBlocks = ancestorEl.querySelectorAll(BLOCK_SELECTORS);
+
+    const blocks = [];
+    let inRange = false;
+    for (const block of allBlocks) {
+      if (block === startBlock) inRange = true;
+      if (inRange) blocks.push(block);
+      if (block === endBlock) break;
+    }
+
+    return blocks.length > 0 ? blocks : [startBlock];
+  }
 
   // ============================================
   // REPLY BUTTON HIJACK
@@ -76,7 +137,7 @@
     if (selection.rangeCount > 0) {
       const scrollContainer = getScrollContainer();
       selectionScrollTop = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
-      selectionRangeRect = selection.getRangeAt(0).getBoundingClientRect();
+      selectionOriginElements = getBlockElementsFromSelection(selection);
     }
 
     // Mark as hijacked
@@ -285,7 +346,8 @@
       contextSnippet: contextSnippet,
       fullContext: contextText,
       originScrollTop: isBlank ? 0 : selectionScrollTop,
-      originSelectedText: contextText
+      originSelectedText: contextText,
+      originElements: isBlank ? [] : [...selectionOriginElements]
     });
 
     const iframe = panel.querySelector('.thread-iframe');
@@ -378,31 +440,55 @@
   }
 
   function scrollToOriginAndHighlight(panelData) {
+    const elements = panelData.originElements;
+
+    // Primary path: use stored DOM references
+    if (elements.length > 0 && elements[0].isConnected) {
+      flashHighlight(elements);
+      return;
+    }
+
+    // Fallback: text-based search (DOM references stale or missing)
+    const fallbackElements = findElementsByText(panelData.originSelectedText);
+    if (fallbackElements.length > 0) {
+      flashHighlight(fallbackElements);
+      return;
+    }
+
+    // Last resort: scroll to saved position
     const scrollContainer = getScrollContainer();
-    if (!scrollContainer) return;
-
-    // Smooth-scroll to the saved origin scroll position (offset a bit to center)
-    const offset = scrollContainer.clientHeight / 3;
-    const targetScroll = Math.max(0, panelData.originScrollTop - offset);
-    scrollContainer.scrollTo({ top: targetScroll, behavior: 'smooth' });
-
-    // After scroll settles, find and highlight the text
-    setTimeout(() => {
-      highlightTextInDOM(panelData.originSelectedText);
-    }, 350);
+    if (scrollContainer) {
+      const offset = scrollContainer.clientHeight / 3;
+      const targetScroll = Math.max(0, panelData.originScrollTop - offset);
+      scrollContainer.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    }
   }
 
-  function highlightTextInDOM(text) {
-    if (!text) return;
+  function flashHighlight(elements) {
+    // Scroll first element into view
+    elements[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Apply highlight
+    elements.forEach(el => el.classList.add('thread-highlight-flash'));
+
+    // Fade out and clean up
+    setTimeout(() => {
+      elements.forEach(el => el.classList.add('fade-out'));
+    }, 800);
+
+    setTimeout(() => {
+      elements.forEach(el => {
+        el.classList.remove('thread-highlight-flash', 'fade-out');
+      });
+    }, 2000);
+  }
+
+  function findElementsByText(text) {
+    if (!text) return [];
 
     const highlights = [];
-    const blockSelectors = 'p, li, pre, blockquote, h1, h2, h3, h4, h5, h6, div';
+    const lines = text.split(/\n+/).filter(line => line.trim().length > 5);
 
-    // Split into paragraphs/lines, filter out short fragments (citation labels etc.)
-    const lines = text.split(/\n+/).filter(line => line.trim().length > 30);
-
-    // Single forward-moving walker prevents matching earlier paragraphs
-    // that happen to share text (e.g. duplicate citation labels)
     const walker = document.createTreeWalker(
       document.body,
       NodeFilter.SHOW_TEXT,
@@ -414,18 +500,12 @@
 
       while (walker.nextNode()) {
         const node = walker.currentNode;
-        // Skip nodes inside our extension's UI
-        if (node.parentElement && node.parentElement.closest &&
-            (node.parentElement.closest('.claude-thread-panel') ||
-             node.parentElement.closest('#claude-thread-button') ||
-             node.parentElement.closest('.thread-tabbar'))) {
+        if (node.parentElement?.closest('.claude-thread-panel, .thread-tabbar')) {
           continue;
         }
         if (node.textContent.indexOf(searchStr) !== -1) {
-          // Walk up to the nearest block-level parent
-          const block = node.parentElement.closest(blockSelectors);
+          const block = findNearestBlock(node.parentElement);
           if (block && !block.classList.contains('thread-highlight-flash')) {
-            block.classList.add('thread-highlight-flash');
             highlights.push(block);
           }
           break;
@@ -433,21 +513,7 @@
       }
     }
 
-    if (highlights.length === 0) return;
-
-    // Scroll the first highlighted block into view
-    highlights[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    // Fade out and clean up
-    setTimeout(() => {
-      highlights.forEach(el => el.classList.add('fade-out'));
-    }, 800);
-
-    setTimeout(() => {
-      highlights.forEach(el => {
-        el.classList.remove('thread-highlight-flash', 'fade-out');
-      });
-    }, 2000);
+    return highlights;
   }
 
   function closePanel(panelId) {
@@ -620,6 +686,9 @@ Context from my main thread:
       if (text.length >= CONFIG.minSelectionLength) {
         e.preventDefault();
         selectedText = text;
+        selectionOriginElements = getBlockElementsFromSelection(selection);
+        const scrollContainer = getScrollContainer();
+        selectionScrollTop = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
         showFloatingPanel(selectedText);
       }
     }
