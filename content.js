@@ -11,20 +11,15 @@
   // ============================================
   const CONFIG = {
     minSelectionLength: 10,
-    buttonOffsetX: 10,
-    buttonOffsetY: -40,
     panelWidth: 480,
     panelHeight: 600,
-    panelMargin: 20,
-    debounceMs: 150
+    panelMargin: 20
   };
 
   // ============================================
   // STATE
   // ============================================
-  let floatingButton = null;
   let selectedText = '';
-  let debounceTimer = null;
 
   // Scroll origin state (captured at selection time)
   let selectionScrollTop = 0;
@@ -36,65 +31,89 @@
   let minimizedTabBar = null;
 
   // ============================================
-  // FLOATING BUTTON
+  // REPLY BUTTON HIJACK
   // ============================================
-  function createFloatingButton() {
-    const button = document.createElement('div');
-    button.id = 'claude-thread-button';
+  function setupReplyButtonHijack() {
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType !== 1) continue;
+
+          // Check if the added node IS the tooltip or CONTAINS it
+          const tooltip = node.matches?.('[data-selection-tooltip="true"]')
+            ? node
+            : node.querySelector?.('[data-selection-tooltip="true"]');
+
+          if (tooltip) {
+            hijackReplyButton(tooltip);
+          }
+        }
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  function hijackReplyButton(tooltip) {
+    const button = tooltip.querySelector('button');
+    if (!button || button.dataset.tangentHijacked) return;
+
+    // Don't hijack if any expanded panel exists
+    for (const [, panelData] of panels) {
+      if (!panelData.minimized) return;
+    }
+
+    // Get current selection
+    const selection = window.getSelection();
+    const text = selection.toString().trim();
+    if (text.length < CONFIG.minSelectionLength) return;
+
+    // Capture selection state
+    selectedText = text;
+    if (selection.rangeCount > 0) {
+      const scrollContainer = getScrollContainer();
+      selectionScrollTop = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
+      selectionRangeRect = selection.getRangeAt(0).getBoundingClientRect();
+    }
+
+    // Mark as hijacked
+    button.dataset.tangentHijacked = 'true';
+
+    // Replace button content with our branch icon + "Open Thread"
     button.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="7" cy="4" r="2.5" fill="currentColor" stroke="none"/>
         <line x1="7" y1="6.5" x2="7" y2="17.5"/>
         <circle cx="7" cy="20" r="2.5" fill="currentColor" stroke="none"/>
         <path d="M7,12 C7,12 7,15 11,15 L17,15 L17,17.5"/>
         <circle cx="17" cy="20" r="2.5" fill="currentColor" stroke="none"/>
       </svg>
-      <span>Open Thread</span>
+      Open Thread
     `;
-    button.addEventListener('click', handleButtonClick);
-    document.body.appendChild(button);
-    return button;
-  }
 
-  function showFloatingButton(x, y) {
-    // Don't show button if any expanded panel exists
-    for (const [, panelData] of panels) {
-      if (!panelData.minimized) {
-        return;
+    // Style the tooltip container with our amber theme
+    const container = tooltip.querySelector('div');
+    if (container) {
+      container.style.cssText = `
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+        border: none;
+      `;
+    }
+
+    // Override click handler
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      if (selectedText) {
+        showFloatingPanel(selectedText);
       }
-    }
-
-    if (!floatingButton) {
-      floatingButton = createFloatingButton();
-    }
-
-    // Calculate position with boundary checks
-    const buttonRect = { width: 120, height: 36 };
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    let posX = x + CONFIG.buttonOffsetX;
-    let posY = y + CONFIG.buttonOffsetY;
-
-    // Keep button within viewport
-    if (posX + buttonRect.width > viewportWidth - 10) {
-      posX = viewportWidth - buttonRect.width - 10;
-    }
-    if (posX < 10) posX = 10;
-    if (posY < 10) posY = 10;
-    if (posY + buttonRect.height > viewportHeight - 10) {
-      posY = viewportHeight - buttonRect.height - 10;
-    }
-
-    floatingButton.style.left = `${posX}px`;
-    floatingButton.style.top = `${posY}px`;
-    floatingButton.classList.add('visible');
-  }
-
-  function hideFloatingButton() {
-    if (floatingButton) {
-      floatingButton.classList.remove('visible');
-    }
+    }, { capture: true });
   }
 
   // ============================================
@@ -289,9 +308,8 @@
 
     panel.classList.add('visible');
 
-    // Clear selection and hide the floating button
+    // Clear selection (also dismisses Claude's tooltip)
     window.getSelection().removeAllRanges();
-    hideFloatingButton();
 
     // Copy context to clipboard (skip for blank threads)
     if (!isBlank) {
@@ -352,9 +370,6 @@
 
     panelData.minimized = false;
     panelData.element.classList.add('visible');
-
-    // Hide floating button when expanding
-    hideFloatingButton();
 
     updateTabBar();
 
@@ -589,72 +604,9 @@ Context from my main thread:
   // ============================================
   // SELECTION HANDLING
   // ============================================
-  function handleSelection(e) {
-    clearTimeout(debounceTimer);
-    
-    debounceTimer = setTimeout(() => {
-      const selection = window.getSelection();
-      const text = selection.toString().trim();
-      
-      if (text.length >= CONFIG.minSelectionLength) {
-        selectedText = text;
-
-        // Get position from mouse event or selection range
-        let x = e.clientX;
-        let y = e.clientY;
-
-        // If we have a range, use its end position for better placement
-        if (selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          const rect = range.getBoundingClientRect();
-          x = rect.right;
-          y = rect.top;
-
-          // Capture scroll origin for sticky threads
-          const scrollContainer = getScrollContainer();
-          selectionScrollTop = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
-          selectionRangeRect = rect;
-        }
-
-        showFloatingButton(x, y);
-      } else {
-        hideFloatingButton();
-        selectedText = '';
-      }
-    }, CONFIG.debounceMs);
-  }
-
-  function handleButtonClick(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (selectedText) {
-      showFloatingPanel(selectedText);
-      hideFloatingButton();
-    }
-  }
-
-  function handleClickOutside(e) {
-    // Hide button if clicking outside of it and not on a panel or tab bar
-    if (floatingButton) {
-      let clickedOnPanel = false;
-      for (const [, panelData] of panels) {
-        if (panelData.element.contains(e.target)) {
-          clickedOnPanel = true;
-          break;
-        }
-      }
-
-      if (!floatingButton.contains(e.target) &&
-          !clickedOnPanel &&
-          !minimizedTabBar?.contains(e.target)) {
-        const selection = window.getSelection();
-        if (!selection.toString().trim()) {
-          hideFloatingButton();
-        }
-      }
-    }
-  }
+  // Note: Selection state is now primarily captured in hijackReplyButton()
+  // when Claude's native tooltip appears. This handler serves as a backup
+  // for keyboard shortcuts (Cmd+Shift+T) which don't trigger the tooltip.
 
   // ============================================
   // KEYBOARD SHORTCUT
@@ -979,11 +931,12 @@ Context from my main thread:
       return;
     }
 
-    document.addEventListener('mouseup', handleSelection);
-    document.addEventListener('mousedown', handleClickOutside);
+    // Hijack Claude's native Reply button with our Open Thread button
+    setupReplyButtonHijack();
+
     document.addEventListener('keydown', handleKeydown);
 
-    console.log('Claude Thread Opener initialized');
+    console.log('Tangent initialized');
   }
 
   // Wait for DOM to be ready
