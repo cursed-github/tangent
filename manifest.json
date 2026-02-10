@@ -4,8 +4,7 @@
   "version": "1.0.0",
   "description": "Branch off into side threads without leaving your main Claude conversation",
   "permissions": [
-    "clipboardWrite",
-    "storage"
+    "clipboardWrite"
   ],
   "host_permissions": [
     "https://claude.ai/*"
