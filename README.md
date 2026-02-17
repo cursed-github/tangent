@@ -6,10 +6,6 @@
 
 [![Watch the demo](images/demo-thumbnail.jpg)](https://www.youtube.com/watch?v=1BIQE1X34EA)
 
-![Thread panel open alongside main conversation](images/thread-panel.jpeg)
-![Select text and click Open Thread](images/open-thread-button.jpg)
-![Multiple minimized thread tabs](images/minimized-tabs.jpeg)
-
 ## The Problem
 
 You're deep into a Claude conversation. You've finally found the explanation that clicks — a dense paragraph breaking down exactly how something works. But now you have a follow-up question.
