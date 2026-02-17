@@ -4,7 +4,7 @@
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/dhacmfmpmgedcagknopapipcgcfcpaae?style=for-the-badge&logo=google-chrome&label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/tangent-%E2%80%93-threaded-chat-f/dhacmfmpmgedcagknopapipcgcfcpaae)
 
-[![Watch the demo](https://img.youtube.com/vi/1BIQE1X34EA/maxresdefault.jpg)](https://www.youtube.com/watch?v=1BIQE1X34EA)
+[![Watch the demo](images/demo-thumbnail.jpg)](https://www.youtube.com/watch?v=1BIQE1X34EA)
 
 ![Thread panel open alongside main conversation](images/thread-panel.jpeg)
 ![Select text and click Open Thread](images/open-thread-button.jpg)
