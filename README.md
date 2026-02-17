@@ -2,6 +2,10 @@
 
 **Branch off into side threads without leaving your main conversation.**
 
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/dhacmfmpmgedcagknopapipcgcfcpaae?style=for-the-badge&logo=google-chrome&label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/tangent-%E2%80%93-threaded-chat-f/dhacmfmpmgedcagknopapipcgcfcpaae)
+
+[![Watch the demo](https://img.youtube.com/vi/1BIQE1X34EA/maxresdefault.jpg)](https://www.youtube.com/watch?v=1BIQE1X34EA)
+
 ![Thread panel open alongside main conversation](images/thread-panel.jpeg)
 ![Select text and click Open Thread](images/open-thread-button.jpg)
 ![Multiple minimized thread tabs](images/minimized-tabs.jpeg)
@@ -71,7 +75,7 @@ Select any text in your Claude conversation and open a threaded side panel — a
 
 ### From Chrome Web Store
 
-*(Coming soon)*
+[**Install Tangent from the Chrome Web Store**](https://chromewebstore.google.com/detail/tangent-%E2%80%93-threaded-chat-f/dhacmfmpmgedcagknopapipcgcfcpaae)
 
 ## Why Tangent?
 
