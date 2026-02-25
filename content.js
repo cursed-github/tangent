@@ -1,5 +1,5 @@
 /**
- * Tangent – Threaded Chat for Claude
+ * Tangent – Threaded Chat for Claude & ChatGPT
  * Branch off into side threads without leaving your main conversation
  */
 
@@ -15,6 +15,8 @@
     panelHeight: 600,
     panelMargin: 20
   };
+
+  const PLATFORM = window.location.hostname.includes('claude.ai') ? 'claude' : 'chatgpt';
 
   // ============================================
   // STATE
@@ -165,6 +167,82 @@
         border: none;
       `;
     }
+
+    // Override click handler
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      if (selectedText) {
+        showFloatingPanel(selectedText);
+      }
+    }, { capture: true });
+  }
+
+  // ============================================
+  // CHATGPT BUTTON HIJACK
+  // ============================================
+  function setupChatGPTButtonHijack() {
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType !== 1) continue;
+
+          // Check if the added node IS the button or CONTAINS it
+          const buttons = node.matches?.('button.btn-secondary')
+            ? [node]
+            : Array.from(node.querySelectorAll?.('button.btn-secondary') || []);
+
+          for (const button of buttons) {
+            if (button.textContent.includes('Ask ChatGPT')) {
+              hijackAskChatGPTButton(button);
+            }
+          }
+        }
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  function hijackAskChatGPTButton(button) {
+    if (button.dataset.tangentHijacked) return;
+
+    // Don't hijack if any expanded panel exists
+    for (const [, panelData] of panels) {
+      if (!panelData.minimized) return;
+    }
+
+    // Get current selection
+    const selection = window.getSelection();
+    const text = selection.toString().trim();
+    if (text.length < CONFIG.minSelectionLength) return;
+
+    // Capture selection state
+    selectedText = text;
+    if (selection.rangeCount > 0) {
+      const scrollContainer = getScrollContainer();
+      selectionScrollTop = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
+      selectionOriginElements = getBlockElementsFromSelection(selection);
+    }
+
+    // Mark as hijacked
+    button.dataset.tangentHijacked = 'true';
+
+    // Replace button content, keep existing classes for native look
+    button.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="7" cy="4" r="2.5" fill="currentColor" stroke="none"/>
+        <line x1="7" y1="6.5" x2="7" y2="17.5"/>
+        <circle cx="7" cy="20" r="2.5" fill="currentColor" stroke="none"/>
+        <path d="M7,12 C7,12 7,15 11,15 L17,15 L17,17.5"/>
+        <circle cx="17" cy="20" r="2.5" fill="currentColor" stroke="none"/>
+      </svg>
+      Open Thread
+    `;
 
     // Override click handler
     button.addEventListener('click', (e) => {
@@ -395,8 +473,11 @@
       sessionStorage.setItem(contextKey, contextText);
     }
 
-    // Set iframe src with incognito param and panel ID in hash
-    iframe.src = `https://claude.ai/new?incognito=true#thread-opener-${panelId}`;
+    // Set iframe src with incognito/temp-chat param and panel ID in hash
+    const iframeSrc = PLATFORM === 'claude'
+      ? `https://claude.ai/new?incognito=true#thread-opener-${panelId}`
+      : `https://chatgpt.com/?temporary-chat=true#thread-opener-${panelId}`;
+    iframe.src = iframeSrc;
 
     // Fallback: if iframe doesn't load in 5 seconds, show error
     setTimeout(() => {
@@ -769,6 +850,11 @@ Context from my main thread:
         inputElement = document.querySelector('[contenteditable="true"][aria-label*="prompt"]');
       }
 
+      // Strategy 5: ChatGPT's prompt textarea
+      if (!inputElement) {
+        inputElement = document.querySelector('#prompt-textarea');
+      }
+
       if (inputElement) {
         console.log('Tangent: Found input element', inputElement.className);
 
@@ -965,9 +1051,10 @@ Context from my main thread:
 
       // Find the send button
       const sendBtn =
-        document.querySelector('button[aria-label="Send Message"]') ||
-        document.querySelector('button[aria-label*="Send"]') ||
-        document.querySelector('button[data-testid="send-button"]') ||
+        document.querySelector('button[aria-label="Send Message"]') ||      // Claude
+        document.querySelector('button[aria-label*="Send"]') ||             // Claude fallback
+        document.querySelector('button[data-testid="send-button"]') ||      // Claude/ChatGPT
+        document.querySelector('button[aria-label="Send prompt"]') ||       // ChatGPT
         document.querySelector('fieldset button[type="button"]:last-of-type');
 
       if (sendBtn && !sendBtn.disabled) {
@@ -1000,12 +1087,16 @@ Context from my main thread:
       return;
     }
 
-    // Hijack Claude's native Reply button with our Open Thread button
-    setupReplyButtonHijack();
+    // Hijack the platform's native button with our Open Thread button
+    if (PLATFORM === 'claude') {
+      setupReplyButtonHijack();
+    } else {
+      setupChatGPTButtonHijack();
+    }
 
     document.addEventListener('keydown', handleKeydown);
 
-    console.log('Tangent initialized');
+    console.log('Tangent initialized on', PLATFORM);
   }
 
   // Wait for DOM to be ready

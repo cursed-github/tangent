@@ -1,4 +1,4 @@
-# Tangent – Threaded Chat for Claude
+# Tangent – Threaded Chat for Claude & ChatGPT
 
 **Branch off into side threads without leaving your main conversation.**
 
@@ -8,9 +8,9 @@
 
 ## The Problem
 
-You're deep into a Claude conversation. You've finally found the explanation that clicks — a dense paragraph breaking down exactly how something works. But now you have a follow-up question.
+You're deep into a conversation — Claude just gave you a dense, perfectly-worded breakdown of a complex topic. Or ChatGPT explained something that finally clicked. But now you have a follow-up question.
 
-So you type it. Claude responds. You scroll back up to re-read that paragraph. Then another question. More scrolling. You're hunting for that one section you were studying, but the conversation keeps growing beneath you. Your flow state is gone. The thing you were trying to understand is now buried under twelve messages of back-and-forth.
+So you type it. You get a response. You scroll back up. Then another question. More scrolling. The thing you were studying is now buried under twelve messages of back-and-forth, and your flow state is gone.
 
 **Your options today:**
 1. Ask the follow-up in the same thread → pollutes your clean conversation
@@ -19,46 +19,51 @@ So you type it. Claude responds. You scroll back up to re-read that paragraph. T
 
 ## The Solution
 
-Tangent fixes this.
+Tangent fixes this — on both Claude and ChatGPT.
 
-Select any text in your Claude conversation and open a threaded side panel — a fresh Claude chat that lives right next to your main conversation. Ask follow-up questions, dig deeper, explore rabbit holes. Your main conversation stays exactly where you left it.
+Select any text in your conversation and open a threaded side panel: a fresh, temporary chat that lives right next to your main conversation. Ask follow-up questions, dig deeper, explore rabbit holes. Your main conversation stays exactly where you left it.
 
 **No scrolling. No context switching. No lost trains of thought.**
 
-
-
 ## How It Works
 
-1. **Select text** in any Claude conversation
-2. **Click "Open Thread"** (or press `Cmd+\` for a blank thread)
-3. **A floating panel opens** with a fresh Claude chat
-4. **Your selected context** is automatically copied for easy reference
+1. **Select text** in any Claude or ChatGPT conversation
+2. **Click "Open Thread"** on the selection button that appears (or press `Cmd+\` for a blank thread)
+3. **A floating panel opens** with a fresh, temporary chat session
+4. **Your selected context** is automatically pasted into the new thread for easy reference
 5. **Minimize threads to tabs**, expand them later — you'll be scrolled right back to where you branched off
-
-
 
 ## Features
 
+### Works on both platforms
+- **claude.ai** — hijacks Claude's native "Reply" selection button
+- **chatgpt.com** — hijacks ChatGPT's native "Ask ChatGPT" selection button
+
 ### Built for deep learning sessions
 - **Multiple simultaneous threads** — open different threads for different topics
-- **Incognito by default** — each thread runs in temporary mode, no clutter in your sidebar
+- **Temporary by default** — each thread runs in temporary/incognito mode, no clutter in your sidebar
 - **Minimize & restore** — minimize a thread, keep reading, restore it later with a single click
-- **Visual scroll-back** — when you re-open a minimized thread, the original text highlights in yellow so you instantly reconnect with the context
+- **Visual scroll-back** — when you re-open a minimized thread, the original text highlights so you instantly reconnect with the context
 
 ### Keyboard shortcuts
 | Shortcut | Action |
 |----------|--------|
 | `Cmd+\` | Open a blank thread |
-
+| `Cmd+Shift+T` | Open a thread from current selection |
+| `Escape` | Minimize the active thread |
 
 ### Lightweight & private
 - Runs entirely locally in your browser
-- No external network requests (except loading claude.ai in the panel)
+- No external network requests beyond loading claude.ai or chatgpt.com in the panel
 - No data collection, no analytics, no tracking
-- Uses your existing Claude subscription — no API key needed
+- Uses your existing Claude or ChatGPT subscription — no API key needed
 - Open source
 
 ## Installation
+
+### From Chrome Web Store
+
+[**Install Tangent from the Chrome Web Store**](https://chromewebstore.google.com/detail/tangent-%E2%80%93-threaded-chat-f/dhacmfmpmgedcagknopapipcgcfcpaae)
 
 ### From Source (Developer Mode)
 
@@ -67,15 +72,11 @@ Select any text in your Claude conversation and open a threaded side panel — a
 3. Enable **Developer mode** (toggle in top-right)
 4. Click **Load unpacked**
 5. Select the `claude-thread-opener` folder
-6. Navigate to [claude.ai](https://claude.ai) and start using Tangent
-
-### From Chrome Web Store
-
-[**Install Tangent from the Chrome Web Store**](https://chromewebstore.google.com/detail/tangent-%E2%80%93-threaded-chat-f/dhacmfmpmgedcagknopapipcgcfcpaae)
+6. Navigate to [claude.ai](https://claude.ai) or [chatgpt.com](https://chatgpt.com) and start using Tangent
 
 ## Why Tangent?
 
-Claude is incredible for learning complex topics — programming concepts, research papers, technical documentation. But the single-thread chat format forces a painful choice: keep reading or ask a question. Tangent removes that trade-off. Branch off, explore, come back. Your reading flow stays intact.
+Claude and ChatGPT are incredible for learning complex topics — programming concepts, research papers, technical documentation. But the single-thread chat format forces a painful choice: keep reading or ask a question. Tangent removes that trade-off. Branch off, explore, come back. Your reading flow stays intact.
 
 **Stop scrolling. Start branching.**
 
@@ -86,6 +87,7 @@ claude-thread-opener/
 ├── manifest.json      # Extension configuration (Manifest V3)
 ├── content.js         # Main logic: selection, button, panel, iframe
 ├── styles.css         # UI styling
+├── rules.json         # declarativeNetRequest rules (strips iframe headers for ChatGPT)
 ├── icons/             # Extension icons
 │   ├── icon16.png
 │   ├── icon48.png
@@ -100,34 +102,28 @@ Key settings are at the top of `content.js`:
 
 ```javascript
 const CONFIG = {
-  minSelectionLength: 10,    // Minimum characters to trigger button
-  buttonOffsetX: 10,         // Button position offset from selection
-  buttonOffsetY: -40,
-  panelWidth: 480,           // Default panel dimensions
-  panelHeight: 600,
-  panelMargin: 20,           // Panel margin from viewport edge
-  debounceMs: 150            // Selection debounce time
+  minSelectionLength: 10,  // Minimum characters to trigger the Open Thread button
+  panelWidth: 480,         // Default panel width in pixels
+  panelHeight: 600,        // Default panel height in pixels
+  panelMargin: 20          // Panel margin from viewport edge
 };
 ```
 
 ## Known Limitations
 
-- **Iframe dependency** — The panel loads Claude in an iframe. If Anthropic changes their security headers, this may break (a fallback "open in new tab" option is provided).
-- **Auto-paste** — Works in most cases, but may fail if a previous thread was left unused. Manual paste (`Cmd+V`) always works as a fallback.
-- **Dark mode only** — Currently styled for Claude's dark theme.
+- **Iframe dependency** — The panel loads Claude or ChatGPT in an iframe. Security header changes on either platform may break this (a fallback "open in new tab" button is provided).
+- **Auto-paste** — Works in most cases, but may occasionally fail if the page is slow to load. Manual paste (`Cmd+V`) always works as a fallback.
+- **Dark mode only** — Currently styled for dark themes.
 
 ## Contributing
 
 Issues and PRs welcome. Potential improvements:
 
-
 - [ ] Lazy unload minimized iframes (memory optimization)
 - [ ] Thread history / persistence across sessions
-- [ ] ChatGPT and Gemini support
+- [ ] Gemini support
 - [ ] Customizable keyboard shortcuts
 
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
-
-
