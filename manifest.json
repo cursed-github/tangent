@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Tangent – Threaded Chat for Claude & ChatGPT",
-  "version": "1.1.0",
+  "name": "Tangent – Threaded Chat for ChatGPT & Claude",
+  "version": "1.2.0",
   "description": "Branch off into side threads without leaving your main Claude or ChatGPT conversation",
   "permissions": [
     "clipboardWrite",

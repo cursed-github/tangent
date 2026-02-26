@@ -1,5 +1,5 @@
 /**
- * Tangent – Threaded Chat for Claude & ChatGPT
+ * Tangent – Threaded Chat for ChatGPT & Claude
  * Branch off into side threads without leaving your main conversation
  */
 
