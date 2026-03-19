@@ -674,9 +674,12 @@ Context from my main thread:
       
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
-      
-      element.style.left = `${initialX + dx}px`;
-      element.style.top = `${initialY + dy}px`;
+
+      const newLeft = Math.max(-(element.offsetWidth - 50), Math.min(window.innerWidth - 50, initialX + dx));
+      const newTop = Math.max(0, Math.min(window.innerHeight - 40, initialY + dy));
+
+      element.style.left = `${newLeft}px`;
+      element.style.top = `${newTop}px`;
       element.style.right = 'auto';
     });
 
