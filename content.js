@@ -232,7 +232,7 @@
     // Mark as hijacked
     button.dataset.tangentHijacked = 'true';
 
-    // Replace button content, keep existing classes for native look
+    // Replace button content and style with amber theme
     button.innerHTML = `
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="7" cy="4" r="2.5" fill="currentColor" stroke="none"/>
@@ -242,6 +242,14 @@
         <circle cx="17" cy="20" r="2.5" fill="currentColor" stroke="none"/>
       </svg>
       Open Thread
+    `;
+
+    button.style.cssText = `
+      background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
     `;
 
     // Override click handler
