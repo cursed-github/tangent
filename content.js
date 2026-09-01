@@ -902,18 +902,28 @@ Context from my main thread:
           // Also try a generic input event
           inputElement.dispatchEvent(new Event('input', { bubbles: true }));
 
-          // Move cursor to end
-          const selection = window.getSelection();
-          const range = document.createRange();
-          range.selectNodeContents(targetP);
-          range.collapse(false); // collapse to end
-          selection.removeAllRanges();
-          selection.addRange(range);
-
+          // Mark success and stop observing BEFORE the cursor move. The text is
+          // already inserted at this point, so anything below must not be able to
+          // re-trigger the observer (Firefox can return a null selection, which
+          // would otherwise throw and leave the observer looping forever).
           hasInserted = true;
           if (observer) {
             observer.disconnect();
             observer = null;
+          }
+
+          // Move cursor to end (best-effort; Firefox may return null selection)
+          try {
+            const selection = window.getSelection();
+            if (selection) {
+              const range = document.createRange();
+              range.selectNodeContents(targetP);
+              range.collapse(false); // collapse to end
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
+          } catch (selErr) {
+            console.warn('Tangent: Could not reposition cursor', selErr);
           }
 
           console.log('Tangent: Auto-pasted context successfully');
