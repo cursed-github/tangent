@@ -1,2 +1,6 @@
 model-summary.md
 video-slides/
+
+# Build output + Chrome-generated DNR ruleset cache
+dist/
+_metadata/

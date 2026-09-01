@@ -65,14 +65,47 @@ Select any text in your conversation and open a threaded side panel: a fresh, te
 
 [**Install Tangent from the Chrome Web Store**](https://chromewebstore.google.com/detail/tangent-%E2%80%93-threaded-chat-f/dhacmfmpmgedcagknopapipcgcfcpaae)
 
-### From Source (Developer Mode)
+### Chrome — From Source (Developer Mode)
 
 1. Clone or download this repository
 2. Open Chrome and navigate to `chrome://extensions/`
 3. Enable **Developer mode** (toggle in top-right)
 4. Click **Load unpacked**
-5. Select the `claude-thread-opener` folder
+5. Select the repository root folder (it contains `manifest.json`)
 6. Navigate to [claude.ai](https://claude.ai) or [chatgpt.com](https://chatgpt.com) and start using Tangent
+
+### Firefox — From Source
+
+Firefox needs its own manifest (`manifest.firefox.json`), so build the Firefox package first:
+
+```bash
+./build.sh firefox      # produces dist/firefox/ and dist/tangent-firefox-<version>.zip
+```
+
+Then load it temporarily:
+
+1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
+2. Click **Load Temporary Add-on…**
+3. Select `dist/firefox/manifest.json`
+4. Navigate to [claude.ai](https://claude.ai) or [chatgpt.com](https://chatgpt.com)
+
+> **Requires Firefox 128+.** Firefox only supports the `declarativeNetRequest` header
+> modification (used to embed ChatGPT in the panel iframe) from version 128 onward.
+> Temporary add-ons are removed when Firefox restarts; for a permanent install the
+> add-on must be signed via [addons.mozilla.org](https://addons.mozilla.org).
+
+### Building distributable zips
+
+`build.sh` assembles both browser packages from the shared source:
+
+```bash
+./build.sh              # build both Chrome + Firefox
+./build.sh chrome       # Chrome only
+./build.sh firefox      # Firefox only
+```
+
+Output lands in `dist/` (a `<target>/` unpacked folder plus a `.zip` for each target).
+The only difference between the two is the manifest — all logic, styles, and rules are shared.
 
 ## Why Tangent?
 
@@ -83,18 +116,23 @@ Claude and ChatGPT are incredible for learning complex topics — programming co
 ## File Structure
 
 ```
-claude-thread-opener/
-├── manifest.json      # Extension configuration (Manifest V3)
-├── content.js         # Main logic: selection, button, panel, iframe
-├── styles.css         # UI styling
-├── rules.json         # declarativeNetRequest rules (strips iframe headers for ChatGPT)
-├── icons/             # Extension icons
+tangent/
+├── manifest.json          # Chrome extension config (Manifest V3)
+├── manifest.firefox.json  # Firefox manifest (adds browser_specific_settings)
+├── build.sh               # Builds Chrome + Firefox packages from shared source
+├── content.js             # Main logic: selection, button, panel, iframe
+├── styles.css             # UI styling
+├── rules.json             # declarativeNetRequest rules (strips iframe headers for ChatGPT)
+├── icons/                 # Extension icons
 │   ├── icon16.png
 │   ├── icon48.png
 │   └── icon128.png
-├── images/            # Screenshots
+├── images/                # Screenshots
 └── README.md
 ```
+
+`content.js`, `styles.css`, and `rules.json` are identical across browsers — only the
+manifest differs, so there's a single source of truth for all the actual behavior.
 
 ## Configuration
 
