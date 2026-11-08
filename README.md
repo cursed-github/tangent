@@ -117,6 +117,13 @@ const CONFIG = {
 
 ## Contributing
 
+### Regression checks
+
+Run `npm ci` followed by `npm test` (Node.js 18 or newer). The tests execute
+the content script against DOM fixtures for ChatGPT's selection action,
+including buttons without legacy styling classes and dynamically updated labels.
+They do not load either chat service or send messages.
+
 Issues and PRs welcome. Potential improvements:
 
 - [ ] Lazy unload minimized iframes (memory optimization)

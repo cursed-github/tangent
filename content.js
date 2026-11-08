@@ -183,29 +183,41 @@
   // CHATGPT BUTTON HIJACK
   // ============================================
   function setupChatGPTButtonHijack() {
+    function inspectButtons(node) {
+      // ChatGPT changes its styling classes independently of the selection action.
+      // Inspect the action's label instead, including text inserted into an
+      // existing button (rather than only newly inserted button elements).
+      const element = node.nodeType === 1 ? node : node.parentElement;
+      if (!element) return;
+
+      const buttons = new Set(element.querySelectorAll('button'));
+      const parentButton = element.closest('button');
+      if (parentButton) buttons.add(parentButton);
+
+      for (const button of buttons) {
+        if (button.textContent.trim().replace(/\s+/g, ' ') === 'Ask ChatGPT') {
+          hijackAskChatGPTButton(button);
+        }
+      }
+    }
+
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
-          if (node.nodeType !== 1) continue;
-
-          // Check if the added node IS the button or CONTAINS it
-          const buttons = node.matches?.('button.btn-secondary')
-            ? [node]
-            : Array.from(node.querySelectorAll?.('button.btn-secondary') || []);
-
-          for (const button of buttons) {
-            if (button.textContent.includes('Ask ChatGPT')) {
-              hijackAskChatGPTButton(button);
-            }
-          }
+        if (mutation.type === 'characterData') {
+          inspectButtons(mutation.target);
+        } else {
+          for (const node of mutation.addedNodes) inspectButtons(node);
         }
       }
     });
 
     observer.observe(document.body, {
       childList: true,
+      characterData: true,
       subtree: true
     });
+
+    inspectButtons(document.body);
   }
 
   function hijackAskChatGPTButton(button) {
@@ -257,6 +269,15 @@
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
+      // The site may reuse its selection button for another passage.
+      const selection = window.getSelection();
+      const text = selection.toString().trim();
+      if (text.length >= CONFIG.minSelectionLength) {
+        selectedText = text;
+        const scrollContainer = getScrollContainer();
+        selectionScrollTop = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
+        selectionOriginElements = getBlockElementsFromSelection(selection);
+      }
       if (selectedText) {
         showFloatingPanel(selectedText);
       }
